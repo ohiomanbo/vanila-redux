@@ -1,54 +1,75 @@
-import { createStore } from "redux" 
-// store 는 state( app 에서 바뀌는 data ) 를 저장, 여기서는 count
-// redux는 data 관리 도와주는 역할
+import { createStore } from "redux"
 
-const add = document.getElementById("add");
-const minus = document.getElementById("minus");
-const number = document.querySelector("span");
+const form = document.querySelector("form")
+const input = document.querySelector("input")
+const ul = document.querySelector("ul")
 
+const ADD_TODO = "ADD_TODO"
+const DELETE_TODO = "DELETE_TODO"
 
-const ADD = 'ADD'
-const MINUS = 'MINUS'
-
-// data를 수정하는 함수
-// return 값이 data에 덮어씌워짐
-// default를 0으로 선언
-// count를 ++, -- 할지는 액션으로 정함
-const reducer = (count = 0, action) => {
-  switch (action.type) {
-
-    case "ADD" :
-      return count+1
-
-    case "MINUS" :
-      return count-1
-
-    default :
-      return count
-
+// object를 반환하는 action creator 함수. dispatch를 통해 reducer의 action으로 보내짐
+const addToDo = text => {
+  return {
+    type : ADD_TODO,
+    text
   }
+} // dispatchDelToDo 의 store.dispatch의 액션 부분을 작은 함수로 쪼개본 것(add.ver)
 
-} 
+const reducer = (state = [], action) => {
+  console.log(action)
+  switch (action.type) {
+    case ADD_TODO: // mutate(원형 변형)하지 말고, new object(state) 리턴하기
+      return [ {text :action.text, id : Date.now()}, ...state ] // Q. 그냥 action.text 더하는거랑 무슨 차이지?
+    case DELETE_TODO:
+      return state.filter(todo => todo.id !== action.id) // new state 리턴
+    default:
+      return state
+  }
+};
 
-// reducer를 initailState로 불러옴
-// store는 데이터가 됨
 const store = createStore(reducer)
 
-// store는 dispatch, subscribe, getState, replaceReduce 함수가 있음
-// store에 action을 dispatch하면, 리덕스가 reducer를 불러 action.type에 따라 동작
-// data의 store를 만들고 message(action)을 dispatch를 이용해 store에게 보내는것
-// store.dispatch({type : "hello"}) 
+store.subscribe( () => console.log(store.getState()))
 
-
-const onChange = () => {
-  number.innerText = store.getState()
+// 이 function은 오직 action을 dispatch하기 위한 용도
+const dispatchAddToDo = (text) => {
+  store.dispatch(addToDo(text)) // dispatch 에 액션과 함께 전달할 내용 전달
 }
 
-store.subscribe(onChange)
+const dispatchDelToDo = e => {
+  e.preventDefault()
+  console.log(e.target.parentNode.id) // 삭제할 부모 노드의 id 값을 알려고
 
-const increase = () => {
-  store.dispatch({ type : ADD})
+  const id = parseInt(e.target.parentNode.id) // string 이므로 Int로 변형
+  store.dispatch({type: DELETE_TODO, id}) // 이러한 액션을 return 하도록 reduecer 위에 function을 만들기도 함(ex. addToDo), 여기서 reducer에서 사용할 action.id를 넘김
 }
 
-add.addEventListener("click", increase) // function 이라 () 달면 바로 실행됨
-minus.addEventListener("click", () => store.dispatch({type : MINUS}))
+const paintTodos = () => {
+  const toDos = store.getState() // 매번 업데이트 될때 마다 getState 불러오므로,
+  ul.innerHTML = "" // 리스트 클리어 해줌
+  toDos.forEach(toDo => { // toDos의 각 항목마다 li를 만들어서 ul의 자식으로 추가
+
+    const li = document.createElement("li")
+    const btn = document.createElement("button")
+
+    li.id = toDo.id
+    li.innerText = toDo.text
+    ul.appendChild(li)
+
+    btn.innerText = "DEL"
+    li.appendChild(btn)
+    btn.addEventListener("click", dispatchDelToDo)
+  })
+} // 큰 규모에서는 느려지거나, 점프될 수 있으므로 리액트로 구현하는게 좋음
+
+store.subscribe(paintTodos) // todo의 변화에 따라 list를 repaint
+
+
+const onSubmit = e => {
+  e.preventDefault()
+  const toDo = input.value
+  input.value = "" // input clear
+  dispatchAddToDo(toDo)
+}
+
+form.addEventListener("submit", onSubmit) // form 자체에다가 listner 줘도 정상작동하네?
